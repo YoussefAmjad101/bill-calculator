@@ -1,124 +1,132 @@
+import pymongo
+import tkinter as tk
+from tkinter import messagebox
 
-from tkinter import *
-me = Tk()
-me.geometry("354x460")
-me.title("CALCULATOR")
-melabel = Label(me, text="CALCULATOR", bg='dark gray',
-                font=("Times", 30, 'bold'))
-melabel.pack(side=TOP)
-me.config(background='Dark gray')
+my_client = pymongo.MongoClient("mongodb://localhost:27017/")
+my_db = my_client["enrollment_system"]
+my_col = my_db["students"]
 
-textin = StringVar()
-operator = ""
+lst = [['ID','Name','Age','Email']]
 
+def callback(event):
+    li = []
+    li = event.widget._values
+    student_id.set(lst[li[1]][0])
+    student_name.set(lst[li[1]][1])
+    student_age.set(lst[li[1]][2])
+    student_email.set(lst[li[1]][3])
 
-def clickbut(number):  # lambda:clickbut(1)
-    global operator
-    operator = operator+str(number)
-    textin.set(operator)
-
-
-def equlbut():
-    global operator
-    add = str(eval(operator))
-    textin.set(add)
-    operator = ''
-
-
-def equlbut():
-    global operator
-    sub = str(eval(operator))
-    textin.set(sub)
-    operator = ''
-
-
-def equlbut():
-    global operator
-    mul = str(eval(operator))
-    textin.set(mul)
-    operator = ''
-
-
-def equlbut():
-    global operator
-    div = str(eval(operator))
-    textin.set(div)
-    operator = ''
+def create_grid(n):
+    lst.clear()
+    lst.append(['ID', 'Name', 'Age', 'Email'])
+    cursor = my_col.find({})
+    for text_fromDB in cursor:
+        student_id = str(text_fromDB["student_id"])
+        student_name = str(text_fromDB["student_name"]).encode("utf-8").decode("utf-8")
+        student_age = str(text_fromDB["student_age"]).encode("utf-8").decode("utf-8")
+        student_email = str(text_fromDB["student_email"]).encode("utf-8").decode("utf-8")
+        lst.append([student_id,student_name,student_age,student_email])
+    
+    for i in range(len(lst)):
+        for j in range(len(lst[0])):
+            mgr_id = tk.Entry(window, width=10)
+            mgr_id.insert(tk.END,lst[i][j])
+            mgr_id._values = mgr_id.get() , i
+            mgr_id.grid(row=i + 7,column=j + 6)
+            mgr_id.bind("<Button-1>",callback)
+    
+    if n == 1:
+        for label in window.grid_slaves():
+            if int(label.grid_info()["row"]) > 6:
+                label.grid_forget()
 
 
-def clrbut():
-    textin.set('')
+def msg_box(msg,title_bar):
+    result=messagebox.askokcancel(title=title_bar,message=msg)
+    return result
+
+def save():
+    # save 
+    r = msg_box("save record ?","record")
+    if r == True:
+        new_id = my_col.count_documents({})
+        if new_id != 0:
+            new_id = my_col.find_one(sort=[("student_id",-1)])["student_id"]
+        id = new_id + 1
+        student_id.set(id)
+        my_dict = {"student_id":int(student_id_.get()),"student_name":student_name_.get(),"student_age":student_age_.get(),"student_email":student_email_.get()}
+        x = my_col.insert_one(my_dict)
+        create_grid(1)
+        create_grid(0)
+
+def delete():
+    # delete
+    r = msg_box("Delete record ?", "record")
+    if r == True:
+        my_query = {"student_id":int(student_id_.get())}
+        x = my_col.delete_one(my_query)
+        create_grid(1)
+        create_grid(0)
+
+def update():
+    # update
+    # delete
+    r = msg_box("Update record ?", "record")
+    if r == True:
+        my_query = {"student_id": int(student_id_.get())}
+        new_values = {"$set" : {"student_name":student_name_.get()}}
+        my_col.update_one(my_query, new_values)
+
+        new_values = {"$set": {"student_age": student_age_.get()}}
+        my_col.update_one(my_query, new_values)
+
+        new_values = {"$set": {"student_email": student_email_.get()}}
+        my_col.update_one(my_query, new_values)
+
+        create_grid(1)
+        create_grid(0)
 
 
-metext = Entry(me, font=("Courier New", 12, 'bold'),
-               textvar=textin, width=25, bd=5, bg='powder blue')
-metext.pack()
+window = tk.Tk()
+window.title("Students Form")
+window.geometry("1050x400")
+window.configure(bg="gray")
 
-but1 = Button(me, padx=14, pady=14, bd=4, bg='white', command=lambda: clickbut(
-    1), text="1", font=("Courier New", 16, 'bold'))
-but1.place(x=10, y=100)
+label = tk.Label(window, text="CRUD | Student Enlistment Form", width=30 , height=1 ,bg="orange" ,anchor="center")
+label.config(font={"courier",10})
+label.grid(column=2,row=1)
 
-but2 = Button(me, padx=14, pady=14, bd=4, bg='white', command=lambda: clickbut(
-    2), text="2", font=("Courier New", 16, 'bold'))
-but2.place(x=10, y=170)
+label = tk.Label(window, text="Student ID:",width=10, height=1, bg="orange")
+label.grid(column=1, row=2)
+student_id=tk.StringVar()
+student_id_=tk.Entry(window,textvariable=student_id)
+student_id_.grid(column=2,row=2)
+# student_id_.configure(state=tk.DISABLED)
 
-but3 = Button(me, padx=14, pady=14, bd=4, bg='white', command=lambda: clickbut(
-    3), text="3", font=("Courier New", 16, 'bold'))
-but3.place(x=10, y=240)
+label = tk.Label(window, text="Student Name:", width=10, height=1, bg="orange")
+label.grid(column=1, row=3)
+student_name = tk.StringVar()
+student_name_ = tk.Entry(window, textvariable=student_name)
+student_name_.grid(column=2, row=3)
 
-but4 = Button(me, padx=14, pady=14, bd=4, bg='white', command=lambda: clickbut(
-    4), text="4", font=("Courier New", 16, 'bold'))
-but4.place(x=75, y=100)
+label = tk.Label(window, text="Student Age:", width=10, height=1, bg="orange")
+label.grid(column=1, row=5)
+student_age = tk.StringVar()
+student_age_ = tk.Entry(window, textvariable=student_age)
+student_age_.grid(column=2, row=5)
 
-but5 = Button(me, padx=14, pady=14, bd=4, bg='white', command=lambda: clickbut(
-    5), text="5", font=("Courier New", 16, 'bold'))
-but5.place(x=75, y=170)
+label = tk.Label(window, text="Student Email:",width=10, height=1, bg="orange")
+label.grid(column=1, row=4)
+student_email = tk.StringVar()
+student_email_ = tk.Entry(window, textvariable=student_email)
+student_email_.grid(column=2, row=4)
 
-but6 = Button(me, padx=14, pady=14, bd=4, bg='white', command=lambda: clickbut(
-    6), text="6", font=("Courier New", 16, 'bold'))
-but6.place(x=75, y=240)
+create_grid(0) #create text field grid
+save_btn = tk.Button(text="Save",command=save)
+save_btn.grid(column=1,row=6)
+save_btn = tk.Button(text="Delete",command=delete)
+save_btn.grid(column=2,row=6)
+save_btn = tk.Button(text="Update", command=update)
+save_btn.grid(column=3, row=6)
 
-but7 = Button(me, padx=14, pady=14, bd=4, bg='white', command=lambda: clickbut(
-    7), text="7", font=("Courier New", 16, 'bold'))
-but7.place(x=140, y=100)
-
-but8 = Button(me, padx=14, pady=14, bd=4, bg='white', command=lambda: clickbut(
-    8), text="8", font=("Courier New", 16, 'bold'))
-but8.place(x=140, y=170)
-
-but9 = Button(me, padx=14, pady=14, bd=4, bg='white', command=lambda: clickbut(
-    9), text="9", font=("Courier New", 16, 'bold'))
-but9.place(x=140, y=240)
-
-but0 = Button(me, padx=14, pady=14, bd=4, bg='white', command=lambda: clickbut(
-    0), text="0", font=("Courier New", 16, 'bold'))
-but0.place(x=10, y=310)
-
-butdot = Button(me, padx=47, pady=14, bd=4, bg='white', command=lambda: clickbut(
-    "."), text=".", font=("Courier New", 16, 'bold'))
-butdot.place(x=75, y=310)
-
-butpl = Button(me, padx=14, pady=14, bd=4, bg='white', text="+",
-               command=lambda: clickbut("+"), font=("Courier New", 16, 'bold'))
-butpl.place(x=205, y=100)
-
-butsub = Button(me, padx=14, pady=14, bd=4, bg='white', text="-",
-                command=lambda: clickbut("-"), font=("Courier New", 16, 'bold'))
-butsub.place(x=205, y=170)
-
-butml = Button(me, padx=14, pady=14, bd=4, bg='white', text="*",
-               command=lambda: clickbut("*"), font=("Courier New", 16, 'bold'))
-butml.place(x=205, y=240)
-
-butdiv = Button(me, padx=14, pady=14, bd=4, bg='white', text="/",
-                command=lambda: clickbut("/"), font=("Courier New", 16, 'bold'))
-butdiv.place(x=205, y=310)
-
-butclear = Button(me, padx=14, pady=119, bd=4, bg='white',
-                  text="CE", command=clrbut, font=("Courier New", 16, 'bold'))
-butclear.place(x=270, y=100)
-
-butequal = Button(me, padx=151, pady=14, bd=4, bg='white',
-                  command=equlbut, text="=", font=("Courier New", 16, 'bold'))
-butequal.place(x=10, y=380)
-me.mainloop()
+window.mainloop()
